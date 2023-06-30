@@ -49,11 +49,11 @@ def get_args():
         default='cuda' if torch.cuda.is_available() else 'cpu')
 
     # Training arguments
-    parser.add_argument('--buffer-size', type=int, default=2000000)
+    parser.add_argument('--buffer-size', type=int, default=1000000)
     parser.add_argument('--actor-lr', type=float, default=1e-3)
     parser.add_argument('--critic-lr', type=float, default=1e-3)
-    parser.add_argument('--epoch', type=int, default=10)
-    parser.add_argument('--step-per-epoch', type=int, default=1000)
+    parser.add_argument('--epoch', type=int, default=100)
+    parser.add_argument('--step-per-epoch', type=int, default=4000)
     parser.add_argument('--collect-per-step', type=int, default=100)
     parser.add_argument('--batch-size', type=int, default=1024)
     parser.add_argument('--training-num', type=int, default=20)
@@ -61,7 +61,7 @@ def get_args():
 
     # Model arguments
     parser.add_argument('--layer-num', type=int, default=2)
-    parser.add_argument('--centralized', action='store_true', default=False)
+    parser.add_argument('--centralized', action='store_false', default=True)
 
     # SAC special
     parser.add_argument('--tau', type=float, default=0.01)
@@ -96,9 +96,9 @@ def get_args():
 
 
 def train_multi_sacd(args=get_args()):
-    wandb_dir = '/scr/zixianma/multiagent/' if torch.cuda.is_available() else 'log/'
+    wandb_dir = '/scratch/sriyash/elign' if torch.cuda.is_available() else 'log/'
     if args.wandb_enabled:
-        wandb.init(dir=wandb_dir, sync_tensorboard=True)
+        wandb.init(dir=wandb_dir, sync_tensorboard=True, mode='offline')
         run_name = args.logdir[args.logdir.rfind('/') + 1:]
         wandb.run.name = run_name
         wandb.config.update(args)
