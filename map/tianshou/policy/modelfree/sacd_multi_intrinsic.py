@@ -206,22 +206,22 @@ class SACDMultiIntPolicy(BasePolicy):
             batch.done = np.zeros_like(batch.done)
 
         int_rewards = self.calculate_intrinsic_reward(buffer, indice)
-        
+        temp_batch = deepcopy(batch)
         local_targets = self.compute_nstep_return(
-            deepcopy(batch), buffer, indice, self._target_local_q,
+            temp_batch, buffer, indice, self._target_local_q,
             self._gamma, self._n_step, self._rew_norm
-        )
+        ).returns
         global_targets = self.compute_nstep_return(
-            deepcopy(batch), buffer, indice, self._target_global_q,
+            temp_batch, buffer, indice, self._target_global_q,
             self._gamma, self._n_step, self._rew_norm
-        )
+        ).returns
         
-        int_batch = deepcopy(batch)
+        int_batch = temp_batch
         int_batch.rews = int_rewards 
         int_targets = self.compute_nstep_return(
-            deepcopy(batch), buffer, indice, self._target_int_q,
+            temp_batch, buffer, indice, self._target_int_q,
             self._gamma, self._n_step, False
-        )
+        ).returns
 
         batch.int_targets = int_targets
         batch.local_targets = local_targets
@@ -288,19 +288,24 @@ class SACDMultiIntPolicy(BasePolicy):
             int_rews = torch.cat(int_rews, dim=1)
         return int_rews
     
-    def train_critic(self, batch, i, critic1, critic2, critic1_optim, critic2_optim):
+    def train_critic(self, batch, i, critic1, critic2, critic1_optim, critic2_optim, returns, cc=True):
         # critic 1
-        current_q1 = critic1(batch.obs[:, i])
+        if cc:
+            current_q1 = critic1(batch.obs, batch.act)
+            current_q2 = critic2(batch.obs, batch.act)
+        else:
+            current_q1 = critic1(batch.obs[:, i])
+            current_q2 = critic2(batch.obs[:, i])
+
         a_ = to_torch_as(batch.act[:, i], current_q1).long().unsqueeze(1)
         current_q1 = current_q1.gather(1, a_)
-        target_q = to_torch_as(batch.returns[:, i], current_q1)[:, None]
+        target_q = to_torch_as(returns[:, i], current_q1)[:, None]
         critic1_loss = F.mse_loss(current_q1, target_q)
         critic1_optim.zero_grad()
         critic1_loss.backward()
         critic1_optim.step()
 
         # critic 2
-        current_q2 = critic2(batch.obs[:, i])
         current_q2 = current_q2.gather(1, a_)
         critic2_loss = F.mse_loss(current_q2, target_q)
         critic2_optim.zero_grad()
@@ -317,21 +322,23 @@ class SACDMultiIntPolicy(BasePolicy):
         total_local_critic2_loss = np.zeros(len(self.local_critic2s))
         total_int_critic1_loss = np.zeros(len(self.int_critic1s))
         total_int_critic2_loss = np.zeros(len(self.int_critic2s))
-        total_returns = np.zeros(len(self.actors))
+        total_global_returns = np.zeros(len(self.actors))
+        total_local_returns = np.zeros(len(self.actors))
+        total_int_returns = np.zeros(len(self.actors))
 
         for i in range(len(self.actors)):
             actor = self.actors[i]
             actor_optim = self.actor_optims[i]
 
-            global_critic1_loss, global_critic2_loss = self.train_critic(batch, i, self.global_critic1s[i], self.global_critic2s[i], self.global_critic1_optims[i], self.global_critic2_optims[i])
-            local_critic1_loss, local_critic2_loss = self.train_critic(batch, i, self.local_critic1s[i], self.local_critic2s[i], self.local_critic1_optims[i], self.local_critic2_optims[i])
-            int_critic1_loss, int_critic2_loss = self.train_critic(batch, i, self.int_critic1s[i], self.int_critic2s[i], self.int_critic1_optims[i], self.int_critic2_optims[i])
+            global_critic1_loss, global_critic2_loss = self.train_critic(batch, i, self.global_critic1s[i], self.global_critic2s[i], self.global_critic1_optims[i], self.global_critic2_optims[i], batch.global_targets)
+            local_critic1_loss, local_critic2_loss = self.train_critic(batch, i, self.local_critic1s[i], self.local_critic2s[i], self.local_critic1_optims[i], self.local_critic2_optims[i], batch.local_targets, False)
+            int_critic1_loss, int_critic2_loss = self.train_critic(batch, i, self.int_critic1s[i], self.int_critic2s[i], self.int_critic1_optims[i], self.int_critic2_optims[i], batch.int_targets)
 
             critic1 = self.global_critic1s[i]
             critic2 = self.global_critic2s[i]
             # actor
-            current_q1a = critic1(batch.obs[:, i]) + self.beta * self.int_critic1s[i](batch.obs[:, i])
-            current_q2a = critic2(batch.obs[:, i]) + self.beta * self.int_critic2s[i](batch.obs[:, i])
+            current_q1a = critic1(batch.obs, batch.act) + self.beta * self.int_critic1s[i](batch.obs, batch.act)
+            current_q2a = critic2(batch.obs, batch.act) + self.beta * self.int_critic2s[i](batch.obs, batch.act)
             logit, _ = actor(batch.obs[:, i])
             log_prob = torch.log(logit + self.__eps)
             actor_loss = self._alpha * log_prob - torch.min(
@@ -348,7 +355,10 @@ class SACDMultiIntPolicy(BasePolicy):
             total_local_critic2_loss[i] = local_critic2_loss.item()
             total_int_critic1_loss[i] = int_critic1_loss.item()
             total_int_critic2_loss[i] = int_critic2_loss.item()
-            total_returns[i] = batch.returns[:, i].mean()
+            total_global_returns[i] = batch.global_targets[:, i].mean()
+            total_local_returns[i] = batch.local_targets[:, i].mean()
+            total_int_returns[i] = batch.int_targets[:, i].mean()
+
         self.sync_weight()
 
         output = {}
@@ -360,7 +370,9 @@ class SACDMultiIntPolicy(BasePolicy):
             output[f'models/local_critic2_{i}'] = total_local_critic2_loss[i]
             output[f'models/int_critic1_{i}'] = total_int_critic1_loss[i]
             output[f'models/int_critic2_{i}'] = total_int_critic2_loss[i]
-            output[f'models/returns_{i}'] = total_returns[i]
+            output[f'models/global_returns_{i}'] = total_global_returns[i]
+            output[f'models/local_returns_{i}'] = total_local_returns[i]
+            output[f'models/int_returns_{i}'] = total_int_returns[i]
             if self.grads_logging:
                 for tag, value in self.actors[i].named_parameters():
                     if value.grad is not None:
