@@ -10,7 +10,7 @@ from tianshou.policy import BasePolicy
 from tianshou.data import Batch, to_torch_as, ReplayBuffer, to_torch
 from tianshou.policy import SACDMultiPolicy
 
-class SACDMultiIntPolicy(SACDMultiPolicy):
+class SACDMultiIntPolicy(BasePolicy):
     """Implementation of Multiagent Soft Actor-Critic.
 
     :param torch.nn.Module actor: the actor network following the rules in
