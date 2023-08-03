@@ -240,13 +240,15 @@ class SACDMultiIntPolicy(BasePolicy):
                 critic1_old = critic1_olds[i]
                 critic2_old = critic2_olds[i]
                 if cc:
-                    critic_input = (to_torch(batch.obs_next, device=a_.device), a_)
+                    target_q = torch.min(
+                        critic1_old(to_torch(batch.obs_next, device=a_.device), a_),
+                        critic2_old(to_torch(batch.obs_next, device=a_.device), a_),
+                    ) - self._alpha * obs_next_result.log_prob[:, i]
                 else:
-                    critic_input = (batch.obs_next[:, i])
-                target_q = torch.min(
-                        critic1_old(*critic_input),
-                        critic2_old(*critic_input),
-                ) - self._alpha * obs_next_result.log_prob[:, i]
+                    target_q = torch.min(
+                        critic1_old(batch.obs_next[:, i]),
+                        critic2_old(batch.obs_next[:, i]),
+                    ) - self._alpha * obs_next_result.log_prob[:, i]
                 target_q = (obs_next_result.dist[:, i] * target_q).sum(
                             dim=1, keepdim=True)
                 target_qs.append(target_q)
