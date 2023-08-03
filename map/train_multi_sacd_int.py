@@ -190,7 +190,8 @@ def train_multi_sacd(args=get_args()):
         reward_normalization=args.rew_norm,
         ignore_done=args.ignore_done,
         estimation_step=args.n_step,
-        grads_logging=args.grads_logging
+        grads_logging=args.grads_logging,
+	beta=args.beta, temp=args.temp
     )
 
    # Load existing models if checkpoint is specified.

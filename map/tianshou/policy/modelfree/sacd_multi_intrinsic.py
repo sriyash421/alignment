@@ -112,9 +112,9 @@ class SACDMultiIntPolicy(BasePolicy):
         self.__eps = np.finfo(np.float32).eps.item()
         self.model_list = [('actor_', self.actors),
                            ('global_critic1_', self.global_critic1s),
-                           ('global_critic2_', self.global_critic2s)
+                           ('global_critic2_', self.global_critic2s),
                            ('local_critic1_', self.local_critic1s),
-                           ('local_critic2_', self.local_critic2s)
+                           ('local_critic2_', self.local_critic2s),
                            ('int_critic1_', self.int_critic1s),
                            ('int_critic2_', self.int_critic2s)]
         self.grads_logging = grads_logging
