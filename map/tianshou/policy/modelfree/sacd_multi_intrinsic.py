@@ -111,11 +111,94 @@ class SACDMultiIntPolicy(SACDMultiPolicy):
         self._alpha = alpha
         self.__eps = np.finfo(np.float32).eps.item()
         self.model_list = [('actor_', self.actors),
-                           ('critic1_', self.global_critic1s),
-                           ('critic2_', self.global_critic2s)]
+                           ('global_critic1_', self.global_critic1s),
+                           ('global_critic2_', self.global_critic2s)
+                           ('local_critic1_', self.local_critic1s),
+                           ('local_critic2_', self.local_critic2s)
+                           ('int_critic1_', self.int_critic1s),
+                           ('int_critic2_', self.int_critic2s)]
         self.grads_logging = grads_logging
         self.beta = kwargs['beta']
         self.temp = kwargs['temp']
+
+        self.critic1s = [*self.global_critic1s, *self.local_critic1s, *self.int_critic1s]
+        self.critic2s = [*self.global_critic2s, *self.local_critic2s, *self.int_critic2s]
+        self.critic1_olds = [*self.global_critic1_olds, *self.local_critic1_olds, *self.int_critic1_olds]
+        self.critic2_olds = [*self.global_critic2_olds, *self.local_critic2_olds, *self.int_critic2_olds]
+    
+    def save(self, logdir, type="best"):
+        for prefix, models in self.model_list:
+            if type == 'final':
+                prefix = 'final_' + prefix
+            for i, model in enumerate(models):
+                path = os.path.join(logdir, prefix + str(i) + '.pkl')
+                torch.save(model.state_dict(), path)
+    
+    def load(self, logdir, type="best"):
+        for prefix, models in self.model_list:
+            if type == 'final':
+                prefix = 'final_' + prefix
+            for i, model in enumerate(models):
+                path = os.path.join(logdir, prefix + str(i) + '.pkl')
+                model.load_state_dict(torch.load(
+                    path, map_location=lambda storage, _: storage))
+        self.critic1_olds = deepcopy(self.critic1s)
+        for critic1_old in self.critic1_olds:
+            critic1_old.eval()
+        self.critic2_olds = deepcopy(self.critic2s)
+        for critic2_old in self.critic2_olds:
+            critic2_old.eval()
+
+    def train(self) -> None:
+        self.training = True
+        for actor in self.actors:
+            actor.train()
+        for critic1 in self.critic1s:
+            critic1.train()
+        for critic2 in self.critic2s:
+            critic2.train()
+
+    def eval(self) -> None:
+        self.training = False
+        for actor in self.actors:
+            actor.eval()
+        for critic1 in self.critic1s:
+            critic1.eval()
+        for critic2 in self.critic2s:
+            critic2.eval()
+
+    def sync_weight(self) -> None:
+        for i in range(len(self.actors)):
+            critic1 = self.critic1s[i]
+            critic2 = self.critic2s[i]
+            critic1_old = self.critic1_olds[i]
+            critic2_old = self.critic2_olds[i]
+            for o, n in zip(critic1_old.parameters(), critic1.parameters()):
+                o.data.copy_(o.data * (1 - self._tau) + n.data * self._tau)
+            for o, n in zip(critic2_old.parameters(), critic2.parameters()):
+                o.data.copy_(o.data * (1 - self._tau) + n.data * self._tau)
+
+    def forward(self, batch: Batch,
+                state: Optional[Union[dict, Batch, np.ndarray]] = None,
+                input: str = 'obs', **kwargs) -> Batch:
+        obs = getattr(batch, input)
+        logits = []
+        acts = []
+        log_probs = []
+        for i, actor in enumerate(self.actors):
+            logit, h = actor(obs[:, i])
+            dist = self.dist_fn(logit)
+            act = dist.sample()
+            log_prob = torch.log(logit + self.__eps)
+            acts.append(act.unsqueeze(1))
+            logits.append(logit.unsqueeze(1))
+            log_probs.append(log_prob.unsqueeze(1))
+        acts = torch.cat(acts, dim=1)
+        logits = torch.cat(logits, dim=1)
+        log_probs = torch.cat(log_probs, dim=1)
+        return Batch(
+            logits=logits, act=acts, state=h, dist=logits, log_prob=log_probs)
+
 
     def process_fn(self, batch: Batch, buffer: ReplayBuffer,
                    indice: np.ndarray) -> Batch:
