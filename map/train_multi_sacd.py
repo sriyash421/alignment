@@ -96,12 +96,14 @@ def get_args():
 
 
 def train_multi_sacd(args=get_args()):
-    wandb_dir = '/scratch/sriyash/elign' if torch.cuda.is_available() else 'log/'
+    wandb_dir = '/home/sriyash/elign_res'
+# if torch.cuda.is_available() else 'log/'
     if args.wandb_enabled:
-        wandb.init(dir=wandb_dir, sync_tensorboard=True, mode='offline')
+        #wandb.init(dir=wandb_dir, project= sync_tensorboard=True, mode='offline')
+        wandb.init(project='ELIGN', dir=wandb_dir, config=args, mode="offline")
         run_name = args.logdir[args.logdir.rfind('/') + 1:]
         wandb.run.name = run_name
-        wandb.config.update(args)
+        #wandb.config.update(args)
     torch.set_num_threads(4)  # 1 for poor CPU
     task_params = {'num_good_agents': args.num_good_agents,
                    'num_adversaries': args.num_adversaries,
