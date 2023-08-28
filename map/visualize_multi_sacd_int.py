@@ -135,11 +135,11 @@ def visualize_multi_sacd(args=get_args()):
         local_critic2s, None,
         int_critic1s, None,
         int_critic2s, None,
-        dist, args.tau, args.gamma, args.alpha,
-        reward_normalization=args.rew_norm,
-        ignore_done=args.ignore_done,
-        estimation_step=args.n_step,
-        grads_logging=args.grads_logging,
+        dist, params.tau, params.gamma, params.alpha,
+        reward_normalization=params.rew_norm,
+        ignore_done=params.ignore_done,
+        estimation_step=params.n_step,
+        grads_logging=params.grads_logging,
 	    beta=0.1, temp=0.01
     )
 
