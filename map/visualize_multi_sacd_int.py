@@ -83,28 +83,28 @@ def visualize_multi_sacd(args=get_args()):
         log_keys = ['rew', 'rew/adv_rew', 'rew/agt_rew']
 
     # model
-    actors = [Actor(args.layer_num, args.state_shape, action_space_n[i],
-                    softmax=True, device=args.device).to(args.device)
+    actors = [Actor(params.layer_num, params.state_shape, action_space_n[i],
+                    softmax=True, device=params.device).to(params.device)
               for i in range(num_agents)]
-    global_critic1s = [CentralizedCritic(args.layer_num, args.state_shape, action_space_n[i], num_agents,
-                                  device=args.device).to(args.device)
+    global_critic1s = [CentralizedCritic(params.layer_num, params.state_shape, action_space_n[i], num_agents,
+                                  device=params.device).to(params.device)
                 for i in range(num_agents)]
     
-    global_critic2s = [CentralizedCritic(args.layer_num, args.state_shape, action_space_n[i], num_agents,
-                                  device=args.device).to(args.device)
+    global_critic2s = [CentralizedCritic(params.layer_num, params.state_shape, action_space_n[i], num_agents,
+                                  device=params.device).to(params.device)
                 for i in range(num_agents)]
     
-    int_critic1s = [CentralizedCritic(args.layer_num, args.state_shape, action_space_n[i], num_agents,
-                                  device=args.device).to(args.device)
+    int_critic1s = [CentralizedCritic(params.layer_num, params.state_shape, action_space_n[i], num_agents,
+                                  device=params.device).to(params.device)
                 for i in range(num_agents)]
     
-    int_critic2s = [CentralizedCritic(args.layer_num, args.state_shape, action_space_n[i], num_agents,
-                                  device=args.device).to(args.device)
+    int_critic2s = [CentralizedCritic(params.layer_num, params.state_shape, action_space_n[i], num_agents,
+                                  device=params.device).to(params.device)
                 for i in range(num_agents)]
 
-    local_critic1s = [Critic(args.layer_num, args.state_shape, action_space_n[i], device=args.device).to(args.device)
+    local_critic1s = [Critic(params.layer_num, params.state_shape, action_space_n[i], device=params.device).to(params.device)
                 for i in range(num_agents)]
-    local_critic2s = [Critic(args.layer_num, args.state_shape, action_space_n[i], device=args.device).to(args.device)
+    local_critic2s = [Critic(params.layer_num, params.state_shape, action_space_n[i], device=params.device).to(args.device)
                 for i in range(num_agents)]
 
     # Setup the benchmark loggers.
