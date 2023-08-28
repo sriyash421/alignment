@@ -337,6 +337,7 @@ class SACDMultiIntPolicy(BasePolicy):
             critic1 = self.global_critic1s[i]
             critic2 = self.global_critic2s[i]
             # actor
+#            print(critic1(batch.obs, batch.act).mean(), self.beta * self.int_critic1s[i](batch.obs, batch.act).mean())
             current_q1a = critic1(batch.obs, batch.act) + self.beta * self.int_critic1s[i](batch.obs, batch.act)
             current_q2a = critic2(batch.obs, batch.act) + self.beta * self.int_critic2s[i](batch.obs, batch.act)
             logit, _ = actor(batch.obs[:, i])
