@@ -3,8 +3,9 @@
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=16G
 #SBATCH --time=71:50:00
+#SBATCH --gres=gpu:1
 #SBATCH --array=0-4
-#SBATCH -o /home/sriyash/elign_res/%j.out
+#SBATCH -o /home/sriyash/scratch/ELIGN_FINAL_LOGS/%j.out
 
 cd $HOME/alignment
 source venv/bin/activate
@@ -17,6 +18,5 @@ beta=$4
 temp=$5
 
 cd map
-echo "python train_multi_sacd_int.py --beta $beta --temp $temp  --task $task --num-good-agents $agents --obs-radius 0.5 --intr-rew $int_rew --epoch 100  --benchmark  --logdir log/$task_${SLURM_ARRAY_TASK_ID} --seed ${SLURM_ARRAY_TASK_ID} --wandb-enabled"
 
-python train_multi_sacd_int.py --beta $beta --temp $temp  --task $task --num-good-agents $agents --obs-radius 0.5 --intr-rew $int_rew --epoch 100  --benchmark  --logdir $SCRATCH/elign_log/$1_$3_$4_${SLURM_ARRAY_TASK_ID}-videos --seed ${SLURM_ARRAY_TASK_ID} --wandb-enabled --save_models --save_videos
+python train_multi_sacd_int.py --beta $beta --temp $temp  --task $task --num-good-agents $agents --obs-radius 0.5 --intr-rew $int_rew --epoch 100  --benchmark  --logdir $SCRATCH/ELIGN_FINAL/$1_$3_$4_${SLURM_ARRAY_TASK_ID} --seed ${SLURM_ARRAY_TASK_ID} --wandb-enabled --save_models

@@ -1,4 +1,7 @@
 
+sbatch job.sh simple_spread_in 3 no
+sbatch job.sh hetero_spread_in 4 no
+
 sbatch job.sh simple_spread_in 3 elign_self
 sbatch job.sh hetero_spread_in 4 elign_self
 
